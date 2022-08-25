@@ -11,7 +11,6 @@ import (
 	"database/sql"
 	"flag"
 	"fmt"
-	"github.com/schollz/progressbar/v3"
 	"os"
 	"regexp"
 	"strconv"
@@ -258,7 +257,7 @@ func main() {
 
 	// make markdown format content
 	var tableContent = "## " + *database + " tables message\n"
-	bar := progressbar.Default(int64(len(tables)))
+	//bar := progressbar.Default(int64(len(tables)))
 
 	for index, table := range tables {
 		// make content process log
@@ -272,28 +271,38 @@ func main() {
 
 		// markdown table header
 		tableContent += "\n" +
-			"| 序号 | 名称 | 描述 | 类型 | 键 | 为空 | 额外 | 默认值 |\n" +
-			"| :--: | :--: | :--: | :--: | :--: | :--: | :--: | :--: |\n"
+			"| **field** | **type** | **length** | **description** | **key** |\n" +
+			"| :-------- | :-------- | :-------- | :-------- | :-------- |\n"
 		var columnInfo, columnInfoErr = queryTableColumn(db, *database, table.Name)
 		if columnInfoErr != nil {
 			continue
 		}
 		for _, info := range columnInfo {
+			columnType := info.ColumnType
+			columnLength := ""
+			if strings.Contains(columnType, "(") {
+				tmp1 := strings.Split(columnType, "(")[0]
+				tmp2 := strings.Split(columnType, "(")[1]
+				strings.ReplaceAll(tmp2, ")", "")
+				columnType = tmp1
+				columnLength = tmp2
+			}
+			columnKey := ""
+			if info.ColumnKey.String == "PRI" {
+				columnKey = "PK"
+			}
 			tableContent += fmt.Sprintf(
-				"| %d | `%s` | %s | %s | %s | %s | %s | %s |\n",
-				info.OrdinalPosition,
+				"| `%s` | %s | %s | %s | %s |\n",
 				info.ColumnName,
+				columnType,
+				columnLength,
 				strings.ReplaceAll(strings.ReplaceAll(info.ColumnComment.String, "|", "\\|"), "\n", ""),
-				info.ColumnType,
-				info.ColumnKey.String,
-				info.IsNullable,
-				info.Extra.String,
-				info.ColumnDefault.String,
+				columnKey,
 			)
 		}
 		tableContent += "\n\n"
 
-		_ = bar.Add(1)
+		//_ = bar.Add(1)
 	}
 	_, err = mdFile.WriteString(tableContent)
 	if nil != err {
